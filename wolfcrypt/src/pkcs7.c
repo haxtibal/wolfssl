@@ -4771,9 +4771,7 @@ static int wc_PKCS7_BuildSignedDataDigest(wc_PKCS7* pkcs7, byte* signedAttrib,
         }
     }
 
-    /* Set algoID, match whatever was input to match either NULL or absent */
-    algoIdSz = SetAlgoIDEx(pkcs7->hashOID, algoId, oidHashType,
-                            0, pkcs7->hashParamsAbsent);
+    algoIdSz = SetAlgoID(pkcs7->hashOID, algoId, oidHashType, 0);
 
     digestStrSz = SetOctetString(hashSz, digestStr);
     digestInfoSeqSz = SetSequence(algoIdSz + digestStrSz + hashSz,
