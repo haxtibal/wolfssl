@@ -1,0 +1,55 @@
+name: PKCS7 Interoperability
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  pkcs7_interop:
+    name: PKCS7 interop
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install GnuTLS tools
+        run: sudo apt-get install -y gnutls-bin
+
+      - name: Generate CMS SignedData test files
+        run: |
+          echo -n "pkcs7 interop test" > $RUNNER_TEMP/content.bin
+          openssl req -x509 -newkey rsa:2048 -keyout $RUNNER_TEMP/key.pem \
+            -out $RUNNER_TEMP/cert.pem -days 1 -nodes \
+            -subj "/CN=wolfssl-pkcs7-interop-test"
+          openssl cms -sign -binary -nodetach \
+            -in $RUNNER_TEMP/content.bin \
+            -signer $RUNNER_TEMP/cert.pem -inkey $RUNNER_TEMP/key.pem \
+            -md sha256 -outform DER -out $RUNNER_TEMP/openssl_cms.der
+          openssl smime -sign -binary -nodetach \
+            -in $RUNNER_TEMP/content.bin \
+            -signer $RUNNER_TEMP/cert.pem -inkey $RUNNER_TEMP/key.pem \
+            -md sha256 -outform DER -out $RUNNER_TEMP/openssl_smime.der
+          certtool --p7-sign \
+            --infile $RUNNER_TEMP/content.bin \
+            --load-certificate $RUNNER_TEMP/cert.pem \
+            --load-privkey $RUNNER_TEMP/key.pem \
+            --outder --outfile $RUNNER_TEMP/gnutls.der
+
+      - name: Build wolfSSL
+        run: |
+          ./autogen.sh
+          ./configure --enable-pkcs7 --enable-certext --enable-examples \
+            --with-pkcs7-test-signed-data=$RUNNER_TEMP/openssl_cms.der,$RUNNER_TEMP/openssl_smime.der,$RUNNER_TEMP/gnutls.der
+          make -j$(nproc)
+
+      - name: Run PKCS7 interop test
+        run: tests/unit.test -test_wc_PKCS7_VerifySignedData_interop
