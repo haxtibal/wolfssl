@@ -3,7 +3,7 @@ name: PKCS7 Interoperability
 # START OF COMMON SECTION
 on:
   push:
-    branches: [ 'master', 'main', 'release/**' ]
+    branches: [ 'master', 'main', 'release/**', 'tdmg/**' ]
   pull_request:
     branches: [ '*' ]
 
@@ -15,7 +15,7 @@ concurrency:
 jobs:
   pkcs7_interop:
     name: PKCS7 interop
-    if: github.repository_owner == 'wolfssl'
+    if: github.repository_owner == 'wolfssl' || github.repository_owner == 'haxtibal'
     runs-on: ubuntu-24.04
     timeout-minutes: 14
     steps:
